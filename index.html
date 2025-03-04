@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Банк туг</title>
+  <script src="https://unpkg.com/html5-qrcode" defer></script>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; }
+    .container { max-width: 600px; width: 100%; }
+    nav { display: flex; justify-content: space-around; margin-bottom: 20px; }
+    nav a { text-decoration: none; color: #4CAF50; font-weight: bold; }
+    h1 { text-align: center; }
+    .card { background: #fff; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    input, textarea { width: 100%; padding: 10px; margin-top: 10px; border: 1px solid #ccc; border-radius: 4px; }
+    button { padding: 10px 20px; margin-top: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background-color: #45a049; }
+    #qrCode, #reader { display: block; margin: 20px auto; width: 200px; }
+  </style>
+</head>
+<body>
+  <div id="rating">
+    <span onclick="setRating(1)">⭐</span>
+    <span onclick="setRating(2)">⭐</span>
+    <span onclick="setRating(3)">⭐</span>
+    <span onclick="setRating(4)">⭐</span>
+    <span onclick="setRating(5)">⭐</span>
+  </div>
+  <div class="container" id="login">
+    <h1>Введите PIN-код</h1>
+    <input type="password" id="pin" placeholder="PIN-код">
+    <button onclick="checkPin()">Войти</button>
+    <p>вам сразу сделали пинкод</p>
+    <p>ваш пинкод 1234</p>
+  </div>
+
+  <div class="container" id="main" style="display:none;">
+    <nav>
+      <a href="#home">Главная</a>
+      <a href="#transfer">Перевод</a>
+      <a href="#wallet">Кошелёк QR</a>
+      <a href="#shop">Магазин</a>
+      <a href="#support">Поддержка</a>
+      <a href="#feedback">Отзывы</a>
+    </nav>
+
+    <h1>Банк туг</h1>
+
+    <div class="card" id="home">
+      <h2>Ваш баланс</h2>
+      <p id="balance"></p>
+      <button onclick="blockCard()">Заблокировать карту</button>
+    </div>
+
+    <div class="card" id="transfer">
+      <h2>Перевод пользователю</h2>
+      <input type="text" id="recipient" placeholder="Имя получателя">
+      <input type="number" id="amount" placeholder="Сумма перевода">
+      <button onclick="handleTransfer()">Отправить</button>
+    </div>
+
+    <div class="card" id="wallet">
+      <h2>QR Кошелёк</h2>
+      <img id="qrCode" src="https://via.placeholder.com/200x200.png?text=QR+Code" alt="QR Code">
+      <div id="reader"></div>
+      <button onclick="startScanner()">Сканировать QR</button>
+    </div>
+
+    <div class="card" id="shop">
+      <h2>Магазин</h2>
+      <p>Перейти в наш <a href="https://www.sulpak.kz/shymkent" target="_blank">онлайн-магазин</a>.</p>
+    </div>
+
+    <div class="card" id="support">
+      <h2>Поддержка</h2>
+      <textarea placeholder="Ваше сообщение"></textarea>
+      <button>Отправить</button>
+    </div>
+
+    <div class="card" id="feedback">
+      <h2>Отзывы</h2>
+      <textarea id="feedbackInput" placeholder="Оставьте отзыв"></textarea>
+      <button onclick="submitFeedback()">Отправить отзыв</button>
+      <div id="feedbackList"></div>
+    </div>
+  </div>
+  <img src="blob:https://web.whatsapp.com/7d58298e-5ce6-40ff-b595-4f8a186f5d34" alt="наша карта">
+  <script>
+    let balance = localStorage.getItem('balance') ? parseFloat(localStorage.getItem('balance')) : 1000;
+    let isCardBlocked = localStorage.getItem('isCardBlocked') === 'true';
+    let currency = localStorage.getItem('currency') || '₸';
+    const PIN_CODE = '1234';
+
+    function checkPin() {
+      const pin = document.getElementById('pin').value;
+      if (pin === PIN_CODE) {
+        document.getElementById('login').style.display = 'none';
+        document.getElementById('main').style.display = 'block';
+        updateBalanceDisplay();
+        loadFeedback();
+      } else {
+        alert('Неверный PIN-код');
+      }
+    }
+
+    function updateBalanceDisplay() {
+      document.getElementById('balance').innerText = balance + currency;
+    }
+
+    function handleTransfer() {
+      if (isCardBlocked) {
+        alert('Карта заблокирована! Операция невозможна.');
+        return;
+      }
+      const recipient = document.getElementById('recipient').value;
+      const amount = parseFloat(document.getElementById('amount').value);
+      if (amount > 0 && amount <= balance) {
+        balance -= amount;
+        localStorage.setItem('balance', balance);
+        updateBalanceDisplay();
+        alert(`Переведено ${amount}${currency} пользователю ${recipient}`);
+      } else {
+        alert('Недостаточно средств или неверная сумма');
+      }
+    }
+
+    function blockCard() {
+      isCardBlocked = true;
+      localStorage.setItem('isCardBlocked', 'true');
+      alert('Карта заблокирована!');
+    }
+
+    function submitFeedback() {
+      const feedback = document.getElementById('feedbackInput').value;
+      if (feedback) {
+        const feedbackList = document.getElementById('feedbackList');
+        feedbackList.innerHTML += `<p>${feedback}</p>`;
+        document.getElementById('feedbackInput').value = '';
+      }
+    }
+
+    function startScanner() {
+      const html5QrCode = new Html5Qrcode("reader");
+      html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 200 },
+        qrCodeMessage => {
+          alert(`QR код отсканирован: ${qrCodeMessage}`);
+          html5QrCode.stop();
+        },
+        errorMessage => {}
+      ).catch(err => alert(`Ошибка запуска сканера: ${err}`));
+    }
+  </script>
+</body>
+</html>
